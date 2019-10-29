@@ -60,11 +60,13 @@ class dgwo():
         '''
         mutation_value = int(round(mutation_rate * len(indv_arg)))
         mutation_pool = random.sample(self.pool, mutation_value)
+        indv = cp.deepcopy(indv_arg)
         for i in range(mutation_value):
             mutation_choice = random.choice(mutation_pool)
             mutation_pool.remove(mutation_choice)
-            indv_arg[random.randint(0,len(indv_arg))] = mutation_choice
-        return indv_arg
+            idx = random.randint(0,len(indv)-1)
+            indv[idx] = mutation_choice
+        return indv
 
     def crossover2(self, indv1, indv2, crossover_rate):
         '''
@@ -91,7 +93,7 @@ class dgwo():
             + indv2[crossover_value:crossover_value*2] \
             + indv3[crossover_value*2:]
         elif flag == 1: 
-            child5 = indv1[:crossover_value] \
+            child = indv1[:crossover_value] \
             + indv3[crossover_value:crossover_value*2] \
             +indv2[crossover_value*2:]
         else: 
@@ -99,6 +101,12 @@ class dgwo():
             + indv2[crossover_value:crossover_value*2] \
             + indv1[crossover_value*2:]
         return child
+    def get_AC(self, a):
+        r1=random.random() # if r1>0.5: A1=[0:2] -->converge --> crossover
+        r2=random.random() # if r1<0.5: A1=[-2:0] --> Diverge --> Mutation
+        A=2*a*r1-a; # Equation (3.3)
+        C=2*r2; # Equation (3.4)     
+        return A,C 
 
     def run(self,):
 
@@ -108,87 +116,74 @@ class dgwo():
         FILE_PATH = 'logs.csv'
         positions = self.populate()
         #--------------------------------------------------    
-        wolves_df = {'fitness':[], 'position':[]}
-        for agent in positions:
-            wolves_df['fitness'].append(self.objf(agent))
-            wolves_df['position'].append(agent)
+        
+        for no_gen_i in range(self.no_gen):
+            wolves_df = {'fitness':[], 'position':[]}
+            for agent in positions:
+                wolves_df['fitness'].append(self.objf(agent))
+                wolves_df['position'].append(agent)
 
-        wolves_df = pd.DataFrame(data=wolves_df).sort_values(by=['fitness']).reset_index(drop=True)
-        Alpha_score, Alpha_pos = wolves_df.loc[0, 'fitness'], wolves_df.loc[0, 'position']
-        Beta_score, Beta_pos   = wolves_df.loc[1, 'fitness'], wolves_df.loc[1, 'position']
-        Delta_score, Delta_pos = wolves_df.loc[2, 'fitness'], wolves_df.loc[2, 'position']
-        if Alpha_score<Last_Alpha_score:
-            Last_Alpha_score = Alpha_score
-        Convergence_curve.append(Last_Alpha_score)   
-        #a=2-l*((2)/gen_no); # a decreases linearly fron 2 to 0 --> a =
-        a= 2*(1-(gen_no_i/self.no_gen)**2)
-        positions = [Alpha_pos, Beta_pos, Delta_pos]
-        print(wolves_df['positions'])
-        for i in range(3, self.pop_size):               
-            X1,X2,X3 = [], [], []
+            wolves_df = pd.DataFrame(data=wolves_df).sort_values(by=['fitness']).reset_index(drop=True)
+            Alpha_score, Alpha_pos = wolves_df.loc[0, 'fitness'], wolves_df.loc[0, 'position']
+            Beta_score, Beta_pos   = wolves_df.loc[1, 'fitness'], wolves_df.loc[1, 'position']
+            Delta_score, Delta_pos = wolves_df.loc[2, 'fitness'], wolves_df.loc[2, 'position']
+            if Alpha_score<Last_Alpha_score:
+                Last_Alpha_score = Alpha_score
+            Convergence_curve.append(Last_Alpha_score)   
+            #a=2-l*((2)/gen_no); # a decreases linearly fron 2 to 0 --> a =
+            a= 2*(1-(no_gen_i/self.no_gen)**2)
+            positions = [Alpha_pos, Beta_pos, Delta_pos]
 
-            B0 = []            
-            agent_fitness = wolves_df.loc[i, 'fitness']
-            B0 = wolves_df.loc[i, 'position']
-            D_alpha = abs((agent_fitness - C1*Alpha_score)/agent_fitness) 
-            D_beta = abs((agent_fitness - C2*Beta_score)/agent_fitness)
-            D_delta = abs((agent_fitness - C3*Delta_score)/agent_fitness)
+            for i in range(3, self.pop_size):               
+                X1,X2,X3 = [], [], []
+        
+                agent_fitness = wolves_df.loc[i, 'fitness']
+                B0 = wolves_df.loc[i, 'position']
 
-            r1=random.random() # if r1>0.5: A1=[0:2] -->converge --> crossover
-            r2=random.random() # if r1<0.5: A1=[-2:0] --> Diverge --> Mutation
-            A1=2*a*r1-a; # Equation (3.3)
-            C1=2*r2; # Equation (3.4)            
-            if abs(A1)>=1:
-                #Exploration
-                X1 = self.mutate(B0, D_alpha)
-            if abs(A1)<1:
-                #Exploitation
-                X1 = self.crossover2(Alpha_pos, B0, D_alpha)
+                A1, C1 = self.get_AC(a)
+                A2, C2 = self.get_AC(a)
+                A3, C3 = self.get_AC(a)
 
-            r1=random.random() # if r1>0.5: A1=[0:2] -->converge --> crossover
-            r2=random.random() # if r1<0.5: A1=[-2:0] --> Diverge --> Mutation
-            A2=2*a*r1-a; # Equation (3.3)
-            C2=2*r2; # Equation (3.4)    
-            if abs(A2)>=1:
-                #Exploration
-                X2 = mutate(B0, D_beta)
-            if abs(A2)<1:
-                #Exploitation
-                X2 = crossover2(Beta_pos, B0, D_beta)
+                D_alpha = abs((agent_fitness - C1*Alpha_score)/agent_fitness) 
+                D_beta = abs((agent_fitness - C2*Beta_score)/agent_fitness)
+                D_delta = abs((agent_fitness - C3*Delta_score)/agent_fitness)
+    
+                if abs(A1)>=1:
+                    #Exploration
+                    X1 = self.mutate(B0, D_alpha)
+                else:
+                    #Exploitation
+                    X1 = self.crossover2(Alpha_pos, B0, D_alpha)
 
-            r1=random.random() # if r1>0.5: A1=[0:2] -->converge --> crossover
-            r2=random.random() # if r1<0.5: A1=[-2:0] --> Diverge --> Mutation
-            A3=2*a*r1-a; # Equation (3.3)
-            C3=2*r2; # Equation (3.4)
-            if abs(A3)>=1:
-                #Exploration
-                X3 = mutate(B0, D_delta)
-            if abs(A3)<1:
-                #Exploitation
-                X3 = crossover2(Delta_pos, B0, D_delta)
+                if abs(A2)>=1:
+                    #Exploration
+                    X2 = self.mutate(B0, D_beta)
+                else:
+                    #Exploitation
+                    X2 = self.crossover2(Beta_pos, B0, D_beta)
 
-            positions.append(crossover3(X1, X2, X3, 0.3))   
-        print(positions)
-        return positions
+                if abs(A3)>=1:
+                    #Exploration
+                    X3 = self.mutate(B0, D_delta)
+                else:
+                    #Exploitation
+                    X3 = self.crossover2(Delta_pos, B0, D_delta)
+                X = self.crossover3(X1, X2, X3, 0.3)
+                positions.append(X)   
+
+        return Convergence_curve, Alpha_pos
 #%%         
 if __name__ == "__main__":
     pool = list('abcdefghijklmnopqrstuvwxyz ')
     target = 'to be or not to be'
-    opt = dgwo(pool=pool, indv_size=len(target), pop_size = 20, target = target)
-    print(opt.run())
+    opt = dgwo(pool=pool, indv_size=len(target), pop_size = 100, target = target, no_gen=500)
+    conv, pos = opt.run()
+    plt.plot(conv)
+    plt.ylim(0, 1)
+    plt.show()
+    print(''.join(pos))
+
 
 # %%
-pool = list('abcdefghijklmnopqrstuvwxyz ')
-target = 'to be or not to be'
-opt = dgwo(pool=pool, indv_size=len(target), pop_size = 20, target = target)
-pop= opt.populate()
-wolves_dic = {'fitness':[], 'position':[]}
-for agent in pop:
-    wolves_dic['fitness'].append(opt.objf(agent))
-    wolves_dic['position'].append(agent)
-
-df = pd.DataFrame(data=wolves_dic)
-df.sort_values(by=['fitness'], inplace=True)
-df.reset_index(drop=True)
 
 # %%
