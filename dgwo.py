@@ -22,7 +22,7 @@ from scipy.optimize import curve_fit
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import classification_report
 
-from tqdm import tqdm_notebook as tqdm
+from tqdm import tqdm
 
 
 
@@ -117,7 +117,7 @@ class dgwo():
         positions = self.populate()
         #--------------------------------------------------    
         
-        for no_gen_i in range(self.no_gen):
+        for no_gen_i in tqdm(range(self.no_gen)):
             wolves_df = {'fitness':[], 'position':[]}
             for agent in positions:
                 wolves_df['fitness'].append(self.objf(agent))
@@ -129,7 +129,8 @@ class dgwo():
             Delta_score, Delta_pos = wolves_df.loc[2, 'fitness'], wolves_df.loc[2, 'position']
             if Alpha_score<Last_Alpha_score:
                 Last_Alpha_score = Alpha_score
-            Convergence_curve.append(Last_Alpha_score)   
+            Convergence_curve.append(Last_Alpha_score)  
+ 
             #a=2-l*((2)/gen_no); # a decreases linearly fron 2 to 0 --> a =
             a= 2*(1-(no_gen_i/self.no_gen)**2)
             positions = [Alpha_pos, Beta_pos, Delta_pos]
@@ -176,7 +177,8 @@ class dgwo():
 if __name__ == "__main__":
     pool = list('abcdefghijklmnopqrstuvwxyz ')
     target = 'to be or not to be'
-    opt = dgwo(pool=pool, indv_size=len(target), pop_size = 100, target = target, no_gen=500)
+    opt = dgwo(pool=pool, indv_size=len(target), pop_size = 10, 
+    target = target, no_gen=50)
     conv, pos = opt.run()
     plt.plot(conv)
     plt.ylim(0, 1)
